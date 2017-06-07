@@ -1,6 +1,7 @@
 #!/bin/bash
 
 STATE=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/state" -H "Metadata-Flavor: Google")
+ZONE=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google")
 
 # Server is rebooting
 if [ $STATE = "init" ]; then
@@ -21,10 +22,10 @@ if [ $STATE = "init" ]; then
 
   # Getting code from github
   cd /home/ubuntu
-  git clone git@github.com:screenshotjy/gcloud_demo.git
+  git clone https://github.com/screenshotjy/gcloud_demo.git
 
   # Marking the instances as "ready"
-  gcloud compute instances add-metadata `hostname` --metadata state=ready
+  gcloud compute instances add-metadata `hostname` --metadata state=ready --zone $ZONE
 fi
   
 # Starting Server
