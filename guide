@@ -1,0 +1,35 @@
+
+# First we create a network
+gcloud compute networks create demo
+
+# Create firewall rules for the network
+gcloud compute firewall-rules create demo-ssh \
+  --network demo \                                  # Firewall rules affect the demo network
+  --source-ranges 24.217.99.160 \                   # Only let traffic in from this specific IP
+  --allow tcp:22,icmp                               # Only allow traffic on TCP 22 port and ICMP
+                                                    # Since no target was specified, this rules applys for all instances in the network
+
+gcloud compute firewall-rules create demo-http 
+  --network demo \                                  # Firewall rules affect the demo network
+  --allow tcp:80 \                                  # Only allow traffic on http port
+  --target-tags http                                # Firewall rule applies to traffic going to instance labeled "http"
+                                                    # Since no source was specified, this rule applys for all incoming traffic
+
+# Time to create our instances
+gcloud compute instances create demo1 demo2 \                                     # Creating two instances called "demo1" and "demo2"
+  --machine-type n1-standard-1 \                                                  # Make this a one core standard machine
+  --boot-disk-size 10GB --boot-disk-type pd-standard --boot-disk-auto-delete \    # The boot disk will be a standard 10GBs persistent disk that will auto delete with the instance is deleted
+  --network demo1 --tags http \                                                   # Put this instance on the demo network with the tag "http"
+  --image-project ubuntu-os-cloud --image ubuntu-1704-zesty-v20170413  \          # Get the Ubuntu 17-04 image from the ubuntu-os-cloud projct. Run gcloud compute images list for a full list of available images
+  --metadata-from-file "startup-script=startup.sh,sshKeys=deployer_keys" \        # Add a startup script to the instance to run whenever the instance is started. Also add deployer keys to the image so we can ssh
+  --metadata state=init \                                                         # Add metadata that tells the instance we are in the "init" state. This is for our own reference
+  --zone us-central1-f                                                            # Create this instance in the us-central1-f zone
+
+# Create a target pool that load balances based on the client's IP
+gcloud compute target-pools create demopool --session-affinity CLIENT_IP --region us-central1
+
+# Add the newly created instances to the target pool
+gcloud compute target-pools add-instances demopool --instances demo1,demo2 --region us-central1
+
+# Create a endpoint that will take any port 80 traffic and forwarded it to the target-pool
+gcloud compute forwarding-rules create demorule --target-pool demopool --region us-central1 --ports 80
